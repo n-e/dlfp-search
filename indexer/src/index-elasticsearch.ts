@@ -9,6 +9,7 @@ const indexMappings = {
   properties: {
     url: { type: "keyword" },
     contentType: { type: "keyword" },
+    forumName: { type: "keyword" },
     title: {
       type: "text",
       analyzer: "french",

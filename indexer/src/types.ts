@@ -9,6 +9,7 @@ export interface RawPage {
 export interface SearchDocument {
   url: string;
   contentType: ContentType;
+  forumName: string | null;
   title: string;
   content: string;
   author: string | null;

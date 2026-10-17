@@ -35,6 +35,8 @@ pnpm indexer:typecheck
 
 The separate `index` command reads an existing NDJSON file and does not fetch LinuxFr.org pages, so extraction can be changed and rerun using the same capture.
 
+Indexed documents use `contentType` (`news`, `journal`, or `forum`) to distinguish content types. Forum post documents also include `forumName`, taken from the visible forum name on the page; it is `null` for news and journals.
+
 Copy `.env.example` values into the environment or set them directly. The defaults use LinuxFr's compressed sitemap index at `https://linuxfr.org/sitemap_index.xml.gz` and Elasticsearch at `http://localhost:9200`. `ELASTICSEARCH_INDEX_PREFIX` is both the concrete index prefix and the stable alias name.
 
 Retries are limited to three attempts for transient transport failures and HTTP 429/5xx responses. A page that still fails stops the crawl; no new index is published.

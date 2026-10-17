@@ -43,13 +43,49 @@ function cleanDate(value: string | undefined): string | null {
   return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString();
 }
 
+function forumNameFromUrl(urlValue: string): string | null {
+  const forumSegment = new URL(urlValue).pathname.split("/")[2];
+  if (!forumSegment) return null;
+  try {
+    return decodeURIComponent(forumSegment);
+  } catch {
+    return forumSegment;
+  }
+}
+
+function forumPostTitle($: ReturnType<typeof load>, urlValue: string): string | null {
+  const pageUrl = new URL(urlValue);
+  const pagePath = pageUrl.pathname.replace(/\/$/, "");
+  const article = $("main article").first();
+  const heading = article.find("header h1").first();
+  const links = heading.find("a");
+
+  for (const element of links.toArray()) {
+    const href = $(element).attr("href");
+    if (!href) continue;
+    if (new URL(href, pageUrl).pathname.replace(/\/$/, "") === pagePath) {
+      const title = $(element).text().replace(/\s+/g, " ").trim();
+      if (title) return title;
+    }
+  }
+
+  if (links.length > 1) {
+    const title = links.last().text().replace(/\s+/g, " ").trim();
+    if (title) return title;
+  }
+  return null;
+}
+
 export function extractDocument(page: RawPage): SearchDocument {
   const contentType = contentTypeFromUrl(page.url);
   if (!contentType) throw new Error(`Raw record has an unsupported content URL: ${page.url}`);
 
   const $ = load(page.html);
   const root = $("main").first().length ? $("main").first() : $("body");
-  const title = firstText($, ["main h1", "h1"])
+  const article = root.find("article").first().length ? root.find("article").first() : root;
+  const forumName = contentType === "forum" ? forumNameFromUrl(page.url) : null;
+  const title = (contentType === "forum" ? forumPostTitle($, page.url) : null)
+    ?? firstText($, ["main h1", "h1"])
     ?? $('meta[property="og:title"]').attr("content")?.trim()
     ?? firstText($, ["title"])
     ?? page.url;
@@ -69,7 +105,6 @@ export function extractDocument(page: RawPage): SearchDocument {
     .map((element) => $(element).text().replace(/\s+/g, " ").trim())
     .filter((tag): tag is string => tag.length > 0);
 
-  const article = root.find("article").first().length ? root.find("article").first() : root;
   const entryContent = article.find(".entry-content").first();
   const body = entryContent.length > 0 ? entryContent : article;
   body.find(removableSelectors).remove();
@@ -85,6 +120,7 @@ export function extractDocument(page: RawPage): SearchDocument {
   return {
     url: page.url,
     contentType,
+    forumName,
     title,
     content,
     author,
