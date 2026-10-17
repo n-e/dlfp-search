@@ -9,6 +9,25 @@ pnpm --filter @dlfp/backend start
 
 By default it listens on `0.0.0.0:3000` and queries Elasticsearch at `http://localhost:9200` using the `linuxfr` alias.
 
+## Docker
+
+From the repository root, build and run the combined frontend and API image:
+
+```sh
+docker build -t linuxfr-search .
+docker run --rm -p 3000:3000 -e ELASTICSEARCH_URL=http://host.docker.internal:9200 linuxfr-search
+```
+
+The backend serves the built frontend at `/` and keeps the API at `/search` and `/health`. Set `ELASTICSEARCH_URL` to the Elasticsearch address reachable from the container (for example, `http://es:9200` on a Docker Compose network).
+
+The image also includes the indexer and its production dependencies. Run it as a one-off container with the same Elasticsearch setting:
+
+```sh
+docker run --rm -e ELASTICSEARCH_URL=http://host.docker.internal:9200 linuxfr-search node indexer/src/cli.ts run --max-urls 10
+```
+
+To keep the raw NDJSON capture after the container exits, mount a host directory at `/app/.data`.
+
 ## Endpoints
 
 - `GET /health` checks that Elasticsearch responds.

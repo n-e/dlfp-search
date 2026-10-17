@@ -1,4 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { readFile, stat } from "node:fs/promises";
+import { extname, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Client } from "@elastic/elasticsearch";
 
 type ContentType = "news" | "journal" | "forum";
@@ -39,6 +42,9 @@ const host = process.env.HOST ?? "0.0.0.0";
 const index = process.env.ELASTICSEARCH_INDEX_PREFIX ?? "linuxfr";
 const elasticsearchUrl = process.env.ELASTICSEARCH_URL ?? "http://localhost:9200";
 const corsOrigin = process.env.CORS_ORIGIN ?? "*";
+const frontendDirectory = resolve(
+  process.env.FRONTEND_DIST_DIR ?? resolve(fileURLToPath(new URL("../../frontend/dist", import.meta.url))),
+);
 
 const clientOptions: ConstructorParameters<typeof Client>[0] = { node: elasticsearchUrl };
 if (process.env.ELASTICSEARCH_API_KEY) {
@@ -123,6 +129,64 @@ function sendJson(response: ServerResponse, statusCode: number, body: unknown): 
     "cache-control": "no-store",
   });
   response.end(JSON.stringify(body));
+}
+
+const contentTypes: Record<string, string> = {
+  ".css": "text/css; charset=utf-8",
+  ".html": "text/html; charset=utf-8",
+  ".ico": "image/x-icon",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
+  ".js": "text/javascript; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".txt": "text/plain; charset=utf-8",
+  ".webp": "image/webp",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+};
+
+async function serveFrontend(pathname: string, method: string, response: ServerResponse): Promise<void> {
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(pathname);
+  } catch {
+    response.writeHead(400).end("Invalid path");
+    return;
+  }
+
+  const root = resolve(frontendDirectory);
+  let filePath = resolve(root, `.${decodedPath}`);
+  if (filePath !== root && !filePath.startsWith(`${root}${sep}`)) {
+    response.writeHead(404).end("Not found");
+    return;
+  }
+
+  try {
+    const fileInfo = await stat(filePath);
+    if (fileInfo.isDirectory()) filePath = resolve(filePath, "index.html");
+  } catch {
+    // Let unknown extensionless routes use the SPA entry point.
+    if (extname(decodedPath)) {
+      response.writeHead(404).end("Not found");
+      return;
+    }
+    filePath = resolve(root, "index.html");
+  }
+
+  try {
+    const body = await readFile(filePath);
+    const contentType = contentTypes[extname(filePath).toLowerCase()] ?? "application/octet-stream";
+    response.writeHead(200, {
+      "content-type": contentType,
+      "cache-control": extname(filePath) === ".html" ? "no-cache" : "public, max-age=3600",
+      "x-content-type-options": "nosniff",
+    });
+    response.end(method === "HEAD" ? undefined : body);
+  } catch {
+    response.writeHead(404).end("Frontend build not found; run the frontend build first");
+  }
 }
 
 async function search(params: SearchParams) {
@@ -258,11 +322,11 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
     return;
   }
 
-  if (request.method !== "GET") {
-    sendJson(response, 405, { error: "Method not allowed" });
-    return;
-  }
   if (url.pathname === "/health") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "Method not allowed" });
+      return;
+    }
     try {
       await elasticsearch.ping();
       sendJson(response, 200, { status: "ok", elasticsearch: "ok" });
@@ -271,21 +335,29 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
     }
     return;
   }
-  if (url.pathname !== "/search") {
-    sendJson(response, 404, { error: "Not found" });
+  if (url.pathname === "/search") {
+    if (request.method !== "GET") {
+      sendJson(response, 405, { error: "Method not allowed" });
+      return;
+    }
+
+    try {
+      sendJson(response, 200, await search(parseSearchParams(url)));
+    } catch (error) {
+      if (error instanceof RequestError) {
+        sendJson(response, error.statusCode, { error: error.message });
+      } else {
+        console.error("Search request failed", error);
+        sendJson(response, 503, { error: "Search service is unavailable" });
+      }
+    }
     return;
   }
-
-  try {
-    sendJson(response, 200, await search(parseSearchParams(url)));
-  } catch (error) {
-    if (error instanceof RequestError) {
-      sendJson(response, error.statusCode, { error: error.message });
-    } else {
-      console.error("Search request failed", error);
-      sendJson(response, 503, { error: "Search service is unavailable" });
-    }
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
   }
+  await serveFrontend(url.pathname, request.method, response);
 });
 
 server.listen(port, host, () => {
