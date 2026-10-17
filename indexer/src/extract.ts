@@ -70,9 +70,17 @@ export function extractDocument(page: RawPage): SearchDocument {
     .filter((tag): tag is string => tag.length > 0);
 
   const article = root.find("article").first().length ? root.find("article").first() : root;
-  article.find(removableSelectors).remove();
-  article.find("h1, time[datetime], [rel=author], .author, .posted_by, .byline").remove();
-  const content = article.text().replace(/\s+/g, " ").trim();
+  const entryContent = article.find(".entry-content").first();
+  const body = entryContent.length > 0 ? entryContent : article;
+  body.find(removableSelectors).remove();
+  body.find("header, footer, h1, time[datetime], [rel=author], .author, .posted_by, .posted_by_spanblock, .byline, .figures, .score").remove();
+  body.find("h2, h3").each((_, heading) => {
+    const headingElement = $(heading);
+    if (headingElement.text().replace(/\s+/g, " ").trim().toLocaleLowerCase("fr") === "aller plus loin") {
+      headingElement.add(headingElement.nextUntil("h2, h3")).remove();
+    }
+  });
+  const content = body.text().replace(/\s+/g, " ").trim();
 
   return {
     url: page.url,

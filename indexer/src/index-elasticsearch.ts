@@ -9,7 +9,12 @@ const indexMappings = {
   properties: {
     url: { type: "keyword" },
     contentType: { type: "keyword" },
-    title: { type: "text", analyzer: "french", search_analyzer: "french" },
+    title: {
+      type: "text",
+      analyzer: "french",
+      search_analyzer: "french",
+      fields: { keyword: { type: "keyword", ignore_above: 256 } },
+    },
     content: { type: "text", analyzer: "french", search_analyzer: "french" },
     author: { type: "keyword" },
     publishedAt: { type: "date", ignore_malformed: true },

@@ -21,15 +21,32 @@ function locationsFromEntries(value: unknown): string[] {
   });
 }
 
+export interface SupportedSitemapPage {
+  url: string;
+  lastModifiedAt?: string;
+}
+
+function supportedPagesFromEntries(value: unknown): SupportedSitemapPage[] {
+  return entries(value).flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || !("loc" in entry)) return [];
+    const page = entry as { loc?: unknown; lastmod?: unknown };
+    if (typeof page.loc !== "string" || page.loc.trim().length === 0) return [];
+    const lastModifiedAt = typeof page.lastmod === "string" && !Number.isNaN(Date.parse(page.lastmod))
+      ? page.lastmod.trim()
+      : undefined;
+    return [{ url: page.loc.trim(), ...(lastModifiedAt ? { lastModifiedAt } : {}) }];
+  });
+}
+
 function findArray(parsed: Record<string, unknown>, key: "urlset" | "sitemapindex"): unknown {
   const root = parsed[key];
   if (!root || typeof root !== "object") return undefined;
   return (root as Record<string, unknown>)[key === "urlset" ? "url" : "sitemap"];
 }
 
-export async function getSupportedSitemapUrls(sitemapUrl: string): Promise<string[]> {
+export async function getSupportedSitemapUrls(sitemapUrl: string): Promise<SupportedSitemapPage[]> {
   const visitedSitemaps = new Set<string>();
-  const supportedPages = new Set<string>();
+  const supportedPages = new Map<string, SupportedSitemapPage>();
 
   async function visit(urlValue: string): Promise<void> {
     const sitemap = new URL(urlValue);
@@ -58,12 +75,19 @@ export async function getSupportedSitemapUrls(sitemapUrl: string): Promise<strin
       return;
     }
 
-    const pageUrls = locationsFromEntries(findArray(parsed, "urlset"));
-    for (const pageUrl of pageUrls) {
-      if (contentTypeFromUrl(pageUrl)) supportedPages.add(normalizeContentUrl(pageUrl));
+    const pages = supportedPagesFromEntries(findArray(parsed, "urlset"));
+    for (const page of pages) {
+      if (!contentTypeFromUrl(page.url)) continue;
+      const url = normalizeContentUrl(page.url);
+      const candidate = { ...page, url };
+      const previous = supportedPages.get(url);
+      if (!previous || (candidate.lastModifiedAt && (!previous.lastModifiedAt
+        || Date.parse(candidate.lastModifiedAt) > Date.parse(previous.lastModifiedAt)))) {
+        supportedPages.set(url, candidate);
+      }
     }
   }
 
   await visit(sitemapUrl);
-  return [...supportedPages];
+  return [...supportedPages.values()];
 }

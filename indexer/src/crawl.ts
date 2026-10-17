@@ -12,11 +12,19 @@ export async function crawlSitemap(
   outputPath: string,
   maxUrls?: number,
 ): Promise<number> {
-  const supportedPageUrls = await getSupportedSitemapUrls(sitemapUrl);
-  if (supportedPageUrls.length === 0) {
+  const supportedPages = await getSupportedSitemapUrls(sitemapUrl);
+  if (supportedPages.length === 0) {
     throw new Error(`The sitemap contains no supported LinuxFr.org pages: ${sitemapUrl}`);
   }
-  const pageUrls = maxUrls === undefined ? supportedPageUrls : supportedPageUrls.slice(0, maxUrls);
+  const pagesToFetch = maxUrls === undefined
+    ? supportedPages
+    : [...supportedPages]
+      .sort((left, right) => {
+        const leftTime = left.lastModifiedAt ? Date.parse(left.lastModifiedAt) : Number.NEGATIVE_INFINITY;
+        const rightTime = right.lastModifiedAt ? Date.parse(right.lastModifiedAt) : Number.NEGATIVE_INFINITY;
+        return rightTime - leftTime || left.url.localeCompare(right.url);
+      })
+      .slice(0, maxUrls);
 
   await mkdir(dirname(outputPath), { recursive: true });
   const temporaryPath = `${outputPath}.partial`;
@@ -29,22 +37,23 @@ export async function crawlSitemap(
   try {
     console.log(
       maxUrls === undefined
-        ? `Found ${supportedPageUrls.length} supported pages; fetching sequentially.`
-        : `Found ${supportedPageUrls.length} supported pages; fetching the first ${pageUrls.length} sequentially.`,
+        ? `Found ${supportedPages.length} supported pages; fetching sequentially.`
+        : `Found ${supportedPages.length} supported pages; fetching the ${pagesToFetch.length} most recently updated sitemap entries sequentially.`,
     );
-    for (const [index, url] of pageUrls.entries()) {
-      console.log(`[${index + 1}/${pageUrls.length}] GET ${url}`);
+    for (const [index, sitemapPage] of pagesToFetch.entries()) {
+      const url = sitemapPage.url;
+      console.log(`[${index + 1}/${pagesToFetch.length}] GET ${url}`);
       const html = await getText(url, "text/html,application/xhtml+xml;q=0.9", /(?:text\/html|application\/xhtml\+xml)/i);
-      const page: RawPage = { url, fetchedAt: new Date().toISOString(), html };
-      if (!output.write(`${JSON.stringify(page)}\n`)) await once(output, "drain");
+      const rawPage: RawPage = { url, fetchedAt: new Date().toISOString(), html };
+      if (!output.write(`${JSON.stringify(rawPage)}\n`)) await once(output, "drain");
     }
 
     output.end();
     await outputFinished;
     await rename(temporaryPath, outputPath);
     completed = true;
-    console.log(`Saved ${pageUrls.length} raw pages to ${outputPath}`);
-    return pageUrls.length;
+    console.log(`Saved ${pagesToFetch.length} raw pages to ${outputPath}`);
+    return pagesToFetch.length;
   } catch (error) {
     output.destroy(error instanceof Error ? error : new Error(String(error)));
     await outputFinished.catch(() => undefined);
