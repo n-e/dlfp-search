@@ -189,7 +189,7 @@ async function serveFrontend(pathname: string, method: string, response: ServerR
   }
 }
 
-async function search(params: SearchParams) {
+async function search(params: SearchParams, signal: AbortSignal) {
   const filters: Record<string, unknown>[] = [];
   if (params.type) filters.push({ term: { contentType: params.type } });
   if (params.author) filters.push({ term: { author: params.author } });
@@ -274,20 +274,23 @@ async function search(params: SearchParams) {
   };
   let response;
   try {
-    response = await elasticsearch.search<SearchDocument>(request);
+    response = await elasticsearch.search<SearchDocument>(request, { signal });
   } catch (error) {
     // Keep search usable against an older index until the next full indexer run adds prefix fields.
     const details = JSON.stringify(error);
     if (!details.includes("title.suggest") && !details.includes("content.suggest")) throw error;
-    response = await elasticsearch.search<SearchDocument>({
-      ...request,
-      query: {
-        bool: {
-          ...(params.q ? { must: [{ multi_match: { query: params.q, fields: ["title^3", "content"], type: "best_fields" } }] } : {}),
-          filter: filters,
+    response = await elasticsearch.search<SearchDocument>(
+      {
+        ...request,
+        query: {
+          bool: {
+            ...(params.q ? { must: [{ multi_match: { query: params.q, fields: ["title^3", "content"], type: "best_fields" } }] } : {}),
+            filter: filters,
+          },
         },
       },
-    });
+      { signal },
+    );
   }
 
   const total = typeof response.hits.total === "number" ? response.hits.total : response.hits.total?.value ?? 0;
@@ -341,9 +344,18 @@ const server = createServer(async (request: IncomingMessage, response: ServerRes
       return;
     }
 
+    const controller = new AbortController();
+    const abortSearch = () => controller.abort();
+    request.once("aborted", abortSearch);
+    response.once("close", () => {
+      if (!response.writableEnded) abortSearch();
+    });
+
     try {
-      sendJson(response, 200, await search(parseSearchParams(url)));
+      const results = await search(parseSearchParams(url), controller.signal);
+      if (!controller.signal.aborted) sendJson(response, 200, results);
     } catch (error) {
+      if (controller.signal.aborted) return;
       if (error instanceof RequestError) {
         sendJson(response, error.statusCode, { error: error.message });
       } else {

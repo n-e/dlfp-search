@@ -189,6 +189,8 @@ a { color: inherit; }
 
 .loading-card, .message-card { min-height: 76px; display: flex; align-items: center; gap: 12px; padding: 18px; color: var(--muted); }
 .loading-card { font-size: 13px; }
+.loading-status { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+.loading-status .spinner { width: 13px; height: 13px; }
 .spinner { width: 16px; height: 16px; border: 2px solid #dfe7df; border-top-color: var(--green); border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .message-card strong { color: #303b33; font-size: 13px; }

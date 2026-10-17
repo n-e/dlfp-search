@@ -83,38 +83,33 @@ function App() {
     setLoading(true);
     setError(null);
 
-    const timer = window.setTimeout(() => {
-      fetch(`${API_URL}/search?${search}`, { signal: controller.signal })
-        .then(async (response) => {
-          if (!response.ok) {
-            const body = (await response.json().catch(() => null)) as {
-              error?: string;
-            } | null;
-            throw new Error(
-              body?.error ?? `La recherche a échoué (${response.status}).`,
-            );
-          }
-          return response.json() as Promise<SearchResponse>;
-        })
-        .then(setData)
-        .catch((reason: unknown) => {
-          if (reason instanceof DOMException && reason.name === "AbortError")
-            return;
-          setError(
-            reason instanceof Error
-              ? reason.message
-              : "Une erreur inattendue est survenue.",
+    fetch(`${API_URL}/search?${search}`, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          throw new Error(
+            body?.error ?? `La recherche a échoué (${response.status}).`,
           );
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
-    }, 280);
+        }
+        return response.json() as Promise<SearchResponse>;
+      })
+      .then(setData)
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError")
+          return;
+        setError(
+          reason instanceof Error
+            ? reason.message
+            : "Une erreur inattendue est survenue.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
 
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
+    return () => controller.abort();
   }, [submitted, page]);
 
   function update<K extends keyof Filters>(key: K, value: Filters[K]) {
@@ -204,21 +199,21 @@ function App() {
           </form>
         </section>
 
-        <section className="results-section" aria-live="polite">
+        <section className="results-section" aria-live="polite" aria-busy={loading}>
           <div className="results-heading">
             <h2>
-              {loading ? (
-                "Recherche en cours…"
-              ) : data ? (
+              {data ? (
                 <>
                   {data.pagination.total.toLocaleString("fr-FR")} résultat
                   {data.pagination.total === 1 ? "" : "s"}
                 </>
+              ) : loading ? (
+                "Recherche en cours…"
               ) : (
                 "Résultats"
               )}
             </h2>
-            {data && !loading && (
+            {data && (
               <span className="page-indicator">
                 Page {page} / {Math.max(data.pagination.totalPages, 1)}
               </span>
@@ -241,9 +236,14 @@ function App() {
               </button>
             </div>
           )}
-          {loading && (
+          {loading && !data && (
             <div className="loading-card">
               <span className="spinner" /> Chargement…
+            </div>
+          )}
+          {loading && data && (
+            <div className="loading-status" role="status">
+              <span className="spinner" /> Mise à jour des résultats…
             </div>
           )}
           {!loading && !error && data?.results.length === 0 && (
@@ -255,7 +255,7 @@ function App() {
             </div>
           )}
 
-          {!loading && !error && data && data.results.length > 0 && (
+          {data && data.results.length > 0 && (
             <>
               <div className="result-list">
                 {data.results.map((result) => {
