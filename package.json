@@ -7,6 +7,9 @@
     "indexer:crawl": "pnpm --filter @dlfp/indexer crawl",
     "indexer:typecheck": "pnpm --filter @dlfp/indexer typecheck",
     "backend": "pnpm --filter @dlfp/backend start",
-    "backend:typecheck": "pnpm --filter @dlfp/backend typecheck"
+    "backend:typecheck": "pnpm --filter @dlfp/backend typecheck",
+    "frontend": "pnpm --filter @dlfp/frontend dev",
+    "frontend:build": "pnpm --filter @dlfp/frontend build",
+    "frontend:typecheck": "pnpm --filter @dlfp/frontend typecheck"
   }
 }
