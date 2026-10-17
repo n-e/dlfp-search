@@ -24,7 +24,7 @@ export async function getText(urlValue: string, accept: string, expectedContentT
     method: "GET",
     headers: {
       accept,
-      "user-agent": "DLFP-Search-Indexer/0.1 (+https://linuxfr.org)",
+      "user-agent": "DLFP-Search-Indexer/0.1 (+https://github.com/n-e/dlfp-search)",
     },
     maxRedirections: 5,
   });

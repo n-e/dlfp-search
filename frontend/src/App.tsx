@@ -354,6 +354,11 @@ function App() {
           )}
         </section>
       </main>
+      <footer className="footer">
+        <a href="https://github.com/n-e/dlfp-search" target="_blank" rel="noreferrer">
+          github.com/n-e/dlfp-search
+        </a>
+      </footer>
     </div>
   );
 }
