@@ -7,11 +7,16 @@ import { getText } from "./http.ts";
 import { getSupportedSitemapUrls } from "./sitemap.ts";
 import type { RawPage } from "./types.ts";
 
-export async function crawlSitemap(sitemapUrl: string, outputPath: string): Promise<number> {
-  const pageUrls = await getSupportedSitemapUrls(sitemapUrl);
-  if (pageUrls.length === 0) {
+export async function crawlSitemap(
+  sitemapUrl: string,
+  outputPath: string,
+  maxUrls?: number,
+): Promise<number> {
+  const supportedPageUrls = await getSupportedSitemapUrls(sitemapUrl);
+  if (supportedPageUrls.length === 0) {
     throw new Error(`The sitemap contains no supported LinuxFr.org pages: ${sitemapUrl}`);
   }
+  const pageUrls = maxUrls === undefined ? supportedPageUrls : supportedPageUrls.slice(0, maxUrls);
 
   await mkdir(dirname(outputPath), { recursive: true });
   const temporaryPath = `${outputPath}.partial`;
@@ -22,7 +27,11 @@ export async function crawlSitemap(sitemapUrl: string, outputPath: string): Prom
   let completed = false;
 
   try {
-    console.log(`Found ${pageUrls.length} supported pages; fetching sequentially.`);
+    console.log(
+      maxUrls === undefined
+        ? `Found ${supportedPageUrls.length} supported pages; fetching sequentially.`
+        : `Found ${supportedPageUrls.length} supported pages; fetching the first ${pageUrls.length} sequentially.`,
+    );
     for (const [index, url] of pageUrls.entries()) {
       console.log(`[${index + 1}/${pageUrls.length}] GET ${url}`);
       const html = await getText(url, "text/html,application/xhtml+xml;q=0.9", /(?:text\/html|application\/xhtml\+xml)/i);

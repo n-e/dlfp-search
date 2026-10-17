@@ -32,7 +32,7 @@ function makeClient(config: Config): Client {
 }
 
 function timestampForIndex(date: Date): string {
-  return date.toISOString().replace(/[:.]/g, "-");
+  return date.toISOString().replace(/[:.]/g, "-").toLowerCase();
 }
 
 function isNotFound(error: unknown): boolean {

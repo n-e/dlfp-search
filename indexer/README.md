@@ -25,9 +25,13 @@ pnpm indexer
 
 ```sh
 pnpm indexer:crawl
+pnpm indexer --max-urls 10
+pnpm indexer:crawl --max-urls 10
 pnpm --filter @dlfp/indexer index-raw .data/linuxfr.ndjson
 pnpm indexer:typecheck
 ```
+
+`--max-urls <count>` limits `run` or `crawl` to the first matching URLs in sitemap order. Use `crawl` to fetch a small sample without sending it to Elasticsearch.
 
 The separate `index` command reads an existing NDJSON file and does not fetch LinuxFr.org pages, so extraction can be changed and rerun using the same capture.
 

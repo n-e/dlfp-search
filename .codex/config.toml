@@ -15,3 +15,4 @@ enabled = true
 
 [permissions.workspace-only.network.domains]
 "*" = "allow"
+"localhost" = "allow"

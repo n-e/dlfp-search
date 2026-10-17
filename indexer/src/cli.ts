@@ -6,8 +6,8 @@ import { indexRawFileAndSwitchAlias } from "./index-elasticsearch.ts";
 
 function usage(): never {
   console.error(`Usage:
-  indexer run
-  indexer crawl
+  indexer run [--max-urls <count>]
+  indexer crawl [--max-urls <count>]
   indexer index <raw-ndjson-file>
 
 Environment:
@@ -20,14 +20,23 @@ Environment:
   process.exit(2);
 }
 
+function parseMaxUrls(args: string[]): number | undefined {
+  if (args.length === 0) return undefined;
+  if (args.length !== 2 || args[0] !== "--max-urls" || !/^\d+$/.test(args[1] ?? "")) usage();
+
+  const maxUrls = Number(args[1]);
+  if (!Number.isSafeInteger(maxUrls) || maxUrls < 1) usage();
+  return maxUrls;
+}
+
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
   if (!command || command === "--help" || command === "-h") usage();
 
   const config = loadConfig();
   if (command === "crawl") {
-    if (args.length > 0) usage();
-    await crawlSitemap(config.sitemapUrl, config.rawNdjsonPath);
+    const maxUrls = parseMaxUrls(args);
+    await crawlSitemap(config.sitemapUrl, config.rawNdjsonPath, maxUrls);
     return;
   }
 
@@ -38,8 +47,8 @@ async function main(): Promise<void> {
   }
 
   if (command === "run") {
-    if (args.length > 0) usage();
-    await crawlSitemap(config.sitemapUrl, config.rawNdjsonPath);
+    const maxUrls = parseMaxUrls(args);
+    await crawlSitemap(config.sitemapUrl, config.rawNdjsonPath, maxUrls);
     await indexRawFileAndSwitchAlias(config, config.rawNdjsonPath);
     return;
   }
