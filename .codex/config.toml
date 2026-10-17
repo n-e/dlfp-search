@@ -1,0 +1,17 @@
+default_permissions = "workspace-only"
+
+[features]
+network_proxy = true
+
+[permissions.workspace-only]
+extends = ":workspace"
+
+[permissions.workspace-only.filesystem]
+":root" = "deny"
+":minimal" = "read"
+
+[permissions.workspace-only.network]
+enabled = true
+
+[permissions.workspace-only.network.domains]
+"*" = "allow"
