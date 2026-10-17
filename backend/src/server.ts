@@ -170,6 +170,42 @@ async function search(params: SearchParams) {
         filter: filters,
       },
     },
+    highlight: {
+      encoder: "html",
+      pre_tags: ["<mark>"],
+      post_tags: ["</mark>"],
+      fields: {
+        title: {
+          number_of_fragments: 0,
+          ...(params.q ? {
+            highlight_query: {
+              bool: {
+                should: [
+                  { match: { title: params.q } },
+                  { match_phrase_prefix: { title: { query: params.q } } },
+                ],
+                minimum_should_match: 1,
+              },
+            },
+          } : {}),
+        },
+        content: {
+          fragment_size: 220,
+          number_of_fragments: 2,
+          ...(params.q ? {
+            highlight_query: {
+              bool: {
+                should: [
+                  { match: { content: params.q } },
+                  { match_phrase_prefix: { content: { query: params.q } } },
+                ],
+                minimum_should_match: 1,
+              },
+            },
+          } : {}),
+        },
+      },
+    },
     sort: [{ _score: { order: "desc" } }, { publishedAt: { order: "desc", missing: "_last" } }],
   };
   let response;
@@ -192,7 +228,9 @@ async function search(params: SearchParams) {
 
   const total = typeof response.hits.total === "number" ? response.hits.total : response.hits.total?.value ?? 0;
   return {
-    results: response.hits.hits.flatMap((hit) => hit._source ? [{ ...hit._source, score: hit._score }] : []),
+    results: response.hits.hits.flatMap((hit) => hit._source
+      ? [{ ...hit._source, score: hit._score, highlights: hit.highlight ?? {} }]
+      : []),
     pagination: {
       page: params.page,
       pageSize: params.pageSize,

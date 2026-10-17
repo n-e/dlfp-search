@@ -16,7 +16,7 @@ By default it listens on `0.0.0.0:3000` and queries Elasticsearch at `http://loc
 
 Search parameters are `q`, `type` (`news`, `journal`, or `forum`), `author`, `from` and `to` (`YYYY-MM-DD`), `page` (default `1`), and `pageSize` (default `20`, maximum `100`). Date bounds include the full day. Unknown parameters and invalid values return `400`.
 
-Successful search responses have a `results` array containing indexed fields and Elasticsearch `_score`, plus `pagination` with `page`, `pageSize`, `total`, and `totalPages`. Results sort by relevance and then publication date.
+Successful search responses have a `results` array containing indexed fields, Elasticsearch `_score`, and a `highlights` object with HTML-escaped title and content fragments wrapped in `<mark>` tags, plus `pagination` with `page`, `pageSize`, `total`, and `totalPages`. Results sort by relevance and then publication date.
 
 ## Configuration
 

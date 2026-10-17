@@ -11,6 +11,7 @@ interface SearchResult {
   publishedAt: string | null;
   tags: string[];
   score: number | null;
+  highlights?: { title?: string[]; content?: string[] };
 }
 interface SearchResponse {
   results: SearchResult[];
@@ -179,8 +180,12 @@ function App() {
                   <div className="result-topline"><span className={`type-badge type-${result.contentType}`}><span className="badge-dot" />{typeLabels[result.contentType]}</span>
                     {date && <time dateTime={result.publishedAt ?? undefined}>{date}</time>}
                   </div>
-                  <h3><a href={result.url} target="_blank" rel="noreferrer">{result.title}<span className="external-arrow" aria-hidden="true">↗</span></a></h3>
-                  <p className="result-excerpt">{result.content || "Aucun extrait disponible."}</p>
+                  <h3><a href={result.url} target="_blank" rel="noreferrer">{result.highlights?.title?.[0]
+                    ? <span dangerouslySetInnerHTML={{ __html: result.highlights.title[0] }} />
+                    : result.title}<span className="external-arrow" aria-hidden="true">↗</span></a></h3>
+                  <p className="result-excerpt">{result.highlights?.content?.[0]
+                    ? <span dangerouslySetInnerHTML={{ __html: result.highlights.content[0] }} />
+                    : result.content || "Aucun extrait disponible."}</p>
                   <div className="result-meta">
                     {result.author && <span className="author-meta"><span className="meta-avatar">{result.author.slice(0, 1).toUpperCase()}</span>{result.author}</span>}
                     {result.forumName && <span className="forum-meta">Dans <strong>{result.forumName}</strong></span>}
