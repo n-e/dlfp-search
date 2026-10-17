@@ -65,28 +65,37 @@ function App() {
     setLoading(true);
     setError(null);
 
-    fetch(`${API_URL}/search?${search}`, { signal: controller.signal })
-      .then(async (response) => {
-        if (!response.ok) {
-          const body = await response.json().catch(() => null) as { error?: string } | null;
-          throw new Error(body?.error ?? `La recherche a échoué (${response.status}).`);
-        }
-        return response.json() as Promise<SearchResponse>;
-      })
-      .then(setData)
-      .catch((reason: unknown) => {
-        if (reason instanceof DOMException && reason.name === "AbortError") return;
-        setError(reason instanceof Error ? reason.message : "Une erreur inattendue est survenue.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
+    const timer = window.setTimeout(() => {
+      fetch(`${API_URL}/search?${search}`, { signal: controller.signal })
+        .then(async (response) => {
+          if (!response.ok) {
+            const body = await response.json().catch(() => null) as { error?: string } | null;
+            throw new Error(body?.error ?? `La recherche a échoué (${response.status}).`);
+          }
+          return response.json() as Promise<SearchResponse>;
+        })
+        .then(setData)
+        .catch((reason: unknown) => {
+          if (reason instanceof DOMException && reason.name === "AbortError") return;
+          setError(reason instanceof Error ? reason.message : "Une erreur inattendue est survenue.");
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 280);
 
-    return () => controller.abort();
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
   }, [submitted, page]);
 
   function update<K extends keyof Filters>(key: K, value: Filters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
+    if (key === "q") {
+      setSubmitted((current) => ({ ...current, q: value as string }));
+      setPage(1);
+    }
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -125,7 +134,7 @@ function App() {
 
         <section className="search-panel" aria-label="Recherche et filtres">
           <form onSubmit={submit}>
-            <label className="search-label" htmlFor="query">VOTRE RECHERCHE</label>
+            <label className="search-label" htmlFor="query">VOTRE RECHERCHE <span className="live-hint">· résultats mis à jour au fil de la saisie</span></label>
             <div className="search-row">
               <span className="search-icon" aria-hidden="true">⌕</span>
               <input id="query" type="search" placeholder="Un sujet, un mot-clé, une idée…" value={filters.q} onChange={(event) => update("q", event.target.value)} />

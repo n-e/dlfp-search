@@ -140,19 +140,55 @@ async function search(params: SearchParams) {
     });
   }
 
-  const response = await elasticsearch.search<SearchDocument>({
+  const request = {
     index,
     from: (params.page - 1) * params.pageSize,
     size: params.pageSize,
     track_total_hits: true,
     query: {
       bool: {
-        ...(params.q ? { must: [{ multi_match: { query: params.q, fields: ["title^3", "content"], type: "best_fields" } }] } : {}),
+        ...(params.q ? {
+          should: [
+            { multi_match: { query: params.q, fields: ["title^3", "content"], type: "best_fields" } },
+            {
+              multi_match: {
+                query: params.q,
+                type: "bool_prefix",
+                fields: [
+                  "title.suggest^3",
+                  "title.suggest._2gram^2",
+                  "title.suggest._3gram",
+                  "content.suggest",
+                  "content.suggest._2gram",
+                  "content.suggest._3gram",
+                ],
+              },
+            },
+          ],
+          minimum_should_match: 1,
+        } : {}),
         filter: filters,
       },
     },
     sort: [{ _score: { order: "desc" } }, { publishedAt: { order: "desc", missing: "_last" } }],
-  });
+  };
+  let response;
+  try {
+    response = await elasticsearch.search<SearchDocument>(request);
+  } catch (error) {
+    // Keep search usable against an older index until the next full indexer run adds prefix fields.
+    const details = JSON.stringify(error);
+    if (!details.includes("title.suggest") && !details.includes("content.suggest")) throw error;
+    response = await elasticsearch.search<SearchDocument>({
+      ...request,
+      query: {
+        bool: {
+          ...(params.q ? { must: [{ multi_match: { query: params.q, fields: ["title^3", "content"], type: "best_fields" } }] } : {}),
+          filter: filters,
+        },
+      },
+    });
+  }
 
   const total = typeof response.hits.total === "number" ? response.hits.total : response.hits.total?.value ?? 0;
   return {
