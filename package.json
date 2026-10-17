@@ -1,0 +1,10 @@
+{
+  "name": "dlfp-search",
+  "private": true,
+  "packageManager": "pnpm@12.10.1",
+  "scripts": {
+    "indexer": "pnpm --filter @dlfp/indexer index",
+    "indexer:crawl": "pnpm --filter @dlfp/indexer crawl",
+    "indexer:typecheck": "pnpm --filter @dlfp/indexer typecheck"
+  }
+}

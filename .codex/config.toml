@@ -7,7 +7,7 @@ network_proxy = true
 extends = ":workspace"
 
 [permissions.workspace-only.filesystem]
-":root" = "deny"
+":root" = "read"
 ":minimal" = "read"
 
 [permissions.workspace-only.network]
