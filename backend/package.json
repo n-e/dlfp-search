@@ -1,0 +1,17 @@
+{
+  "name": "@dlfp/backend",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.12" },
+  "scripts": {
+    "start": "node src/server.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.3"
+  }
+}

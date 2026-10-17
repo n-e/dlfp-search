@@ -166,6 +166,19 @@ importers:
 
   .: {}
 
+  backend:
+    dependencies:
+      '@elastic/elasticsearch':
+        specifier: ^8.19.0
+        version: 8.19.2
+    devDependencies:
+      '@types/node':
+        specifier: ^24.5.2
+        version: 24.19.2
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   indexer:
     dependencies:
       '@elastic/elasticsearch':

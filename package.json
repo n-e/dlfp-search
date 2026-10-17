@@ -5,6 +5,8 @@
   "scripts": {
     "indexer": "pnpm --filter @dlfp/indexer index",
     "indexer:crawl": "pnpm --filter @dlfp/indexer crawl",
-    "indexer:typecheck": "pnpm --filter @dlfp/indexer typecheck"
+    "indexer:typecheck": "pnpm --filter @dlfp/indexer typecheck",
+    "backend": "pnpm --filter @dlfp/backend start",
+    "backend:typecheck": "pnpm --filter @dlfp/backend typecheck"
   }
 }
